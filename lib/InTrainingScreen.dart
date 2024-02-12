@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:vokabeltrainer_v2/DatabaseHelper.dart';
-import 'package:vokabeltrainer_v2/vocab_model.dart';
 import 'vocab_model.dart';
+import 'DatabaseHelper.dart';
 
 class TrainingScreen extends StatefulWidget {
   final String trainingPackName;
@@ -30,10 +29,11 @@ class _TrainingScreenState extends State<TrainingScreen> {
   void _loadVocabularies() async {
     print('TrainingScreen - Loading vocabularies for training');
     List<Vocabulary> loadedVocabularies = await DatabaseHelper()
-        .getVocabulariesForTesting(widget.trainingPackName, widget.vocabCount);
+        .getVocabulariesForTraining(widget.trainingPackName, widget.vocabCount);
 
     setState(() {
       vocabularies = loadedVocabularies;
+      print('Loaded Vocabularies: $loadedVocabularies');
       print('vokabeln geladen');
       print(vocabularies);
     });
@@ -69,8 +69,10 @@ class _TrainingScreenState extends State<TrainingScreen> {
     });
 
     if (currentIndex < vocabularies.length) {
+      print(currentIndex);
       // Zeige das nächste Vokabel an
     } else {
+      print("Ich bin fertig! $currentIndex");
       // Training abgeschlossen
       _completeTraining();
     }
@@ -98,6 +100,9 @@ class _TrainingScreenState extends State<TrainingScreen> {
             TextButton(
               onPressed: () {
                 Navigator.pop(context); // Schließe das Dialogfenster
+                setState(() {
+                  currentIndex = 0; // Setze den Index auf 0 zurück
+                });
                 _repeatTraining();
               },
               child: Text('Ja'),
@@ -125,6 +130,9 @@ class _TrainingScreenState extends State<TrainingScreen> {
             TextButton(
               onPressed: () {
                 Navigator.pop(context); // Schließe das Dialogfenster
+                setState(() {
+                  currentIndex = 0; // Setze den Index auf 0 zurück
+                });
                 _repeatTraining();
               },
               child: Text('Ja'),

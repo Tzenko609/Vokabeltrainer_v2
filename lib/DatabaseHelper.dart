@@ -2,7 +2,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'package:path/path.dart';
-import 'package:vokabeltrainer_v2/vocab_model.dart';
+import 'vocab_model.dart';
 
 class DatabaseHelper {
   static Database? _database;
@@ -39,7 +39,8 @@ class DatabaseHelper {
       CREATE TABLE Vocabularies (
         id INTEGER PRIMARY KEY,
         term TEXT,
-        description TEXT
+        description TEXT,
+        translation TEXT
       );
 
       CREATE TABLE VocabStammblock (
@@ -74,6 +75,84 @@ class DatabaseHelper {
         FOREIGN KEY (vocabularyId) REFERENCES Vocabularies (id)
       );
     ''');
+  }
+
+  Future<void> createAdditionalTables() async {
+    Database db = await database;
+
+    // Führe die Funktion zum Erstellen der zusätzlichen Tabellen aus
+    await _createAdditionalTables(db);
+  }
+
+  //WEIL AUS IRGENDEINEM GRUND NUR Vocabpack ERSTELLT WIRD UND NICHT DIE RESTLICHEN TABELLEN
+  Future<void> _createAdditionalTables(Database db) async {
+    // Erstelle zusätzliche Tabellen
+    await db.execute('''
+      CREATE TABLE Vocabularies (
+        id INTEGER PRIMARY KEY,
+        term TEXT,
+        description TEXT
+        translation TEXT
+      );
+    ''');
+
+    await db.execute('''
+      CREATE TABLE VocabStammblock (
+        id INTEGER PRIMARY KEY,
+        vocabPackId INTEGER,
+        vocabularyId INTEGER,
+        FOREIGN KEY (vocabPackId) REFERENCES VocabPacks (id),
+        FOREIGN KEY (vocabularyId) REFERENCES Vocabularies (id)
+      );
+    ''');
+
+    await db.execute('''
+      CREATE TABLE VocabTrainingBlock (
+        id INTEGER PRIMARY KEY,
+        vocabPackId INTEGER,
+        vocabularyId INTEGER,
+        FOREIGN KEY (vocabPackId) REFERENCES VocabPacks (id),
+        FOREIGN KEY (vocabularyId) REFERENCES Vocabularies (id)
+      );
+    ''');
+
+    await db.execute('''
+      CREATE TABLE VocabErweiterterStapel (
+        id INTEGER PRIMARY KEY,
+        vocabPackId INTEGER,
+        vocabularyId INTEGER,
+        FOREIGN KEY (vocabPackId) REFERENCES VocabPacks (id),
+        FOREIGN KEY (vocabularyId) REFERENCES Vocabularies (id)
+      );
+    ''');
+
+    await db.execute('''
+      CREATE TABLE VocabGepruefterStapel (
+        id INTEGER PRIMARY KEY,
+        vocabPackId INTEGER,
+        vocabularyId INTEGER,
+        FOREIGN KEY (vocabPackId) REFERENCES VocabPacks (id),
+        FOREIGN KEY (vocabularyId) REFERENCES Vocabularies (id)
+      );
+    ''');
+  }
+
+  Future<void> updateVocabulariesTable() async {
+    final Database db = await database;
+
+    // 1. Tabelle umbenennen
+    await db.execute('ALTER TABLE Vocabularies RENAME TO Vocabularies_old');
+
+    // 2. Neue Tabelle erstellen
+    await db.execute(
+        'CREATE TABLE Vocabularies (id INTEGER PRIMARY KEY, term TEXT, description TEXT, translation TEXT)');
+
+    // 3. Daten von alter Tabelle in neue Tabelle kopieren
+    await db.execute(
+        'INSERT INTO Vocabularies (id, term, description) SELECT id, term, description FROM Vocabularies_old');
+
+    // 4. Alte Tabelle löschen
+    await db.execute('DROP TABLE Vocabularies_old');
   }
 
   Future<void> printTableContents(String tableName) async {
@@ -274,10 +353,51 @@ class DatabaseHelper {
   Future<List<Vocabulary>> getVocabulariesForTraining(String packName, int count) async {
     final Database db = await database;
     final int? packId = await getVocabPackIdByName(packName);
+    print("Hallo ich Bin getVocabulariesForTraining");
 
     List<Map<String, dynamic>> result = await db.rawQuery(
         'SELECT Vocabularies.* FROM Vocabularies '
             'JOIN VocabStammblock ON Vocabularies.id = VocabStammblock.vocabularyId '
+            'WHERE VocabStammblock.vocabPackId = ? '
+            'ORDER BY RANDOM() '
+            'LIMIT ?',
+        [packId, count]);
+
+    return result.map((item) => Vocabulary.fromMap(item)).toList();
+  }
+
+  Future<List<Vocabulary>> vokabeltest(String packName, int count) async {
+    final Database db = await database;
+    final int? packId = await getVocabPackIdByName(packName);
+    print(packId);
+    List<Map<String, dynamic>> result = await db.rawQuery(
+        'SELECT Vocabularies.* FROM Vocabularies '
+            'JOIN VocabStammblock ON Vocabularies.id = VocabStammblock.vocabularyId '
+            'WHERE VocabStammblock.vocabPackId = ? '
+            'ORDER BY RANDOM() '
+            'LIMIT ?',
+        [packId, count]);
+    print("Hello!");
+
+    // Ausgabe des Ergebnisses
+    result.forEach((row) {
+      print("Row: $row");
+    });
+// Konvertiere das Ergebnis in Vocabulary-Objekte
+    List<Vocabulary> vocabularies = result.map((item) => Vocabulary.fromMap(item)).toList();
+
+    return vocabularies;
+
+
+  }
+
+  Future<List<Vocabulary>> getVocabulariesForTesting(String packName, int count) async {
+    final Database db = await database;
+    final int? packId = await getVocabPackIdByName(packName);
+
+    List<Map<String, dynamic>> result = await db.rawQuery(
+        'SELECT Vocabularies.* FROM Vocabularies '
+            'JOIN VocabStammblock ON Vocabularies.id = VocabTrainingBlock.vocabularyId '
             'WHERE VocabStammblock.vocabPackId = ? '
             'ORDER BY RANDOM() '
             'LIMIT ?',
@@ -309,21 +429,13 @@ class DatabaseHelper {
     }
   }
 
-  Future<List<Vocabulary>> getVocabulariesForTesting(String packName, int count) async {
-    final Database db = await database;
-    final int? packId = await getVocabPackIdByName(packName);
 
-    List<Map<String, dynamic>> result = await db.rawQuery(
-        'SELECT Vocabularies.* FROM Vocabularies '
-            'JOIN VocabStammblock ON Vocabularies.id = VocabTrainingBlock.vocabularyId '
-            'WHERE VocabStammblock.vocabPackId = ? '
-            'ORDER BY RANDOM() '
-            'LIMIT ?',
-        [packId, count]);
 
-    return result.map((item) => Vocabulary.fromMap(item)).toList();
-  }
-
+  //DRIGEND NOCH DIE VOCABPACKID REIN!!!!!!!!!!!!!!!!!!!!!!
+  //DRIGEND NOCH DIE VOCABPACKID REIN!!!!!!!!!!!!!!!!!!!!!!
+  //DRIGEND NOCH DIE VOCABPACKID REIN!!!!!!!!!!!!!!!!!!!!!!
+  //DRIGEND NOCH DIE VOCABPACKID REIN!!!!!!!!!!!!!!!!!!!!!!
+  //DRIGEND NOCH DIE VOCABPACKID REIN!!!!!!!!!!!!!!!!!!!!!!
   Future<void> updateTrainingResults(int vocabId, bool isCorrect) async {
     final Database db = await database;
 

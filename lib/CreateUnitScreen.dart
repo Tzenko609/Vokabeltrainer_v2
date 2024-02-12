@@ -41,7 +41,10 @@ class CreateUnitScreen extends StatelessWidget {
             ElevatedButton(
               onPressed: () async {
                 DatabaseHelper dbHelper = DatabaseHelper();
-                await dbHelper.printTableContents('VocabTrainingBlock');
+                //await dbHelper.createAdditionalTables();
+                //print("erstellt");
+                //await dbHelper.vokabeltest('testpaket',5);
+                await dbHelper.printTableContents('VocabGepruefterStapel');
               },
               child: Text('Print Table Contents'),
             ),
